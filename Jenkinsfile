@@ -2,12 +2,12 @@ pipeline {
     agent any
     tools {
         // Note: this should match with the tool name configured in your jenkins instance (JENKINS_URL/configureTools/)
-        maven "MVN_HOME"
+        maven "Maven_3.9.4"
         
     }
 	 environment {
         // This can be nexus3 or nexus2
-        NEXUS_VERSION = "nexus3"
+        NEXUS_VERSION = "Maven_3.9.4"
         // This can be http or https
         NEXUS_PROTOCOL = "http"
         // Where your Nexus is running
