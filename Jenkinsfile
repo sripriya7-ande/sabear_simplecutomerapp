@@ -34,21 +34,21 @@ pipeline { // Opening pipeline
                 } // Closing script
             } // Closing steps
         } // Closing mvn build stage
-        stage('SonarCloud') { // Opening SonarCloud stage
-            steps { // Opening steps
-                withSonarQubeEnv('sonarqube_server') { // Opening withSonarQubeEnv (Ensure 'sonarqube_server' matches your Jenkins SonarQube Server configuration name)
-                    sh '$SCANNER_HOME/bin/sonar-scanner \\
-                    -Dsonar.projectKey=Ncodeit \\
-                    -Dsonar.projectName=Ncodeit \\
-                    -Dsonar.projectVersion=2.0 \\
-                    -Dsonar.sources=/var/lib/jenkins/workspace/$JOB_NAME/src/ \\
-                    -Dsonar.binaries=target/classes/com/visualpathit/account/controller/ \\
-                    -Dsonar.junit.reportsPath=target/surefire-reports \\
-                    -Dsonar.jacoco.reportPath=target/jacoco.exec \\
-                    -Dsonar.java.binaries=src/com/room/sample ' // Note: backslashes for line continuation are only for display, in a real file you often put the entire string on one line or use triple quotes for multiline strings in Groovy, but this is usually fine for shell commands.
-                } // Closing withSonarQubeEnv
-            } // Closing steps
-        } // Closing SonarCloud stage
+        stage('SonarCloud') {
+        steps {
+            withSonarQubeEnv('sonarqube_server') {
+                sh '''$SCANNER_HOME/bin/sonar-scanner \
+                    -Dsonar.projectKey=Ncodeit \
+                    -Dsonar.projectName=Ncodeit \
+                    -Dsonar.projectVersion=2.0 \
+                    -Dsonar.sources=/var/lib/jenkins/workspace/$JOB_NAME/src/ \
+                    -Dsonar.binaries=target/classes/com/visualpathit/account/controller/ \
+                    -Dsonar.junit.reportsPath=target/surefire-reports \
+                    -Dsonar.jacoco.reportPath=target/jacoco.exec \
+                    -Dsonar.java.binaries=src/com/room/sample ''' // <-- Change here: Start and end with triple quotes
+            }
+        }
+    }
         stage("publish to nexus") { // Opening publish to nexus stage
             steps { // Opening steps
                 script { // Opening script
