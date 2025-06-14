@@ -1,0 +1,96 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'Maven_3.9.4'
+    }
+
+    environment {
+        // Nexus configuration
+        NEXUS_VERSION = "nexus3" // Should be "nexus2" or "nexus3"
+        NEXUS_PROTOCOL = "http"
+        NEXUS_URL = "34.201.219.251:8082" // Removed trailing slash
+        NEXUS_REPOSITORY = "maven-snapshot05" // Confirm this exists in Nexus
+        NEXUS_CREDENTIAL_ID = "nexus-credentials" // This must match Jenkins credential ID
+
+        // SonarScanner
+        SCANNER_HOME = tool 'sonar_scanner'
+    }
+
+    stages {
+
+        stage("Clone Code") {
+            steps {
+                git 'https://github.com/sripriya7-ande/sabear_simplecutomerapp.git'
+            }
+        }
+
+        stage("Build with Maven") {
+            steps {
+                sh 'mvn -Dmaven.test.failure.ignore=true clean install'
+            }
+        }
+
+        stage("SonarQube Analysis") {
+            steps {
+                withSonarQubeEnv('sonar') {
+                    sh '''${SCANNER_HOME}/bin/sonar-scanner \
+                        -Dsonar.projectKey=Ncodeit \
+                        -Dsonar.projectName=Ncodeit \
+                        -Dsonar.projectVersion=2.0 \
+                        -Dsonar.sources=src \
+                        -Dsonar.java.binaries=target/classes \
+                        -Dsonar.junit.reportsPath=target/surefire-reports \
+                        -Dsonar.jacoco.reportPath=target/jacoco.exec'''
+                }
+            }
+        }
+
+        stage("Publish to Nexus") {
+            steps {
+                script {
+                    def pom = readMavenPom file: 'pom.xml'
+                    echo "Version: ${pom.version}"
+
+                    def filesByGlob = findFiles(glob: "target/*.${pom.packaging}")
+                    if (filesByGlob.length == 0) {
+                        error "*** No artifact found in target/"
+                    }
+
+                    def artifactPath = filesByGlob[0].path
+                    def artifactExists = fileExists artifactPath
+
+                    if (artifactExists) {
+                        echo "*** Uploading artifact: ${artifactPath}"
+
+                        nexusArtifactUploader(
+                            nexusVersion: NEXUS_VERSION,
+                            protocol: NEXUS_PROTOCOL,
+                            nexusUrl: NEXUS_URL,
+                            groupId: pom.groupId,
+                            version: pom.version,
+                            repository: NEXUS_REPOSITORY,
+                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            artifacts: [
+                                [
+                                    artifactId: pom.artifactId,
+                                    classifier: '',
+                                    file: artifactPath,
+                                    type: pom.packaging
+                                ],
+                                [
+                                    artifactId: pom.artifactId,
+                                    classifier: '',
+                                    file: 'pom.xml',
+                                    type: 'pom'
+                                ]
+                            ]
+                        )
+                    } else {
+                        error "*** File: ${artifactPath}, could not be found"
+                    }
+                }
+            }
+        }
+    }
+}
