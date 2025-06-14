@@ -9,7 +9,7 @@ pipeline { // Opening pipeline
         // This can be http or https
         NEXUS_PROTOCOL = "http"
         // Where your Nexus is running
-        NEXUS_URL = "3.88.54.126:8082//" // Double check the double slash at the end, usually it's just one: "3.88.54.126:8082/"
+        NEXUS_URL = "34.201.219.251:8082/" // Double check the double slash at the end, usually it's just one: "3.88.54.126:8082/"
         // Repository where we will upload the artifact
         NEXUS_REPOSITORY = "maven-snapshot05/" // Is this the correct Nexus repository name? Sonarqube is usually a tool, not a Nexus repo. Common ones are 'maven-releases', 'maven-snapshots'.
         // Jenkins credential id to authenticate to Nexus OSS
