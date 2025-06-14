@@ -5,7 +5,7 @@ pipeline { // Opening pipeline
     } // Closing tools
     environment { // Opening environment
         // This can be nexus3 or nexus2
-        NEXUS_VERSION = "Maven_3.9.4" // This should probably be "nexus3" or "nexus2" based on the comment. Currently it's set to Maven version.
+        NEXUS_VERSION = "nexus3 // This should probably be "nexus3" or "nexus2" based on the comment. Currently it's set to Maven version.
         // This can be http or https
         NEXUS_PROTOCOL = "http"
         // Where your Nexus is running
