@@ -7,7 +7,7 @@ pipeline {
 
     environment {
         // Nexus configuration
-        NEXUS_VERSION = "nexus3" // Should be "nexus2" or "nexus3"
+        NEXUS_VERSION = "nexus_3.9.4" // Should be "nexus2" or "nexus3"
         NEXUS_PROTOCOL = "http"
         NEXUS_URL = "34.201.219.251:8082" // Removed trailing slash
         NEXUS_REPOSITORY = "maven-snapshot05" // Confirm this exists in Nexus
