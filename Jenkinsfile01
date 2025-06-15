@@ -1,5 +1,4 @@
 node {
-    // Define environment variables
     def NEXUS_VERSION = "nexus3"
     def NEXUS_PROTOCOL = "http"
     def NEXUS_URL = "34.201.219.251:8082"
@@ -9,17 +8,14 @@ node {
     def mvnHome = tool name: 'Maven_3.9.4', type: 'hudson.tasks.Maven$MavenInstallation'
 
     try {
-        // Stage 1: Clone code
         stage('Clone Code') {
             git 'https://github.com/sripriya7-ande/sabear_simplecutomerapp.git'
         }
 
-        // Stage 2: Maven Build
         stage('Maven Build') {
             sh "${mvnHome}/bin/mvn -Dmaven.test.failure.ignore=true clean install"
         }
 
-        // Stage 3: SonarCloud
         stage('SonarCloud') {
             withSonarQubeEnv('sonar') {
                 sh """
@@ -36,7 +32,6 @@ node {
             }
         }
 
-        // Stage 4: Publish to Nexus
         stage('Publish to Nexus') {
             def pom = readMavenPom file: 'pom.xml'
             echo "Version: ${pom.version}"
@@ -64,29 +59,25 @@ node {
             }
         }
 
-        // Stage 5: Deploy to Tomcat
         stage('Deploy to Tomcat') {
             def pom = readMavenPom file: 'pom.xml'
             def artifactPath = "target/*.${pom.packaging}"
             def tomcatUrl = 'https://34.201.219.251:8443'
-            def contextPath = "/${pom.artifactId}" // Deploys to /SimpleCustomerApp (adjust if needed)
-            
+            def contextPath = "/${pom.artifactId}"
             deploy adapters: [tomcat9(credentialsId: 'tomcat-token', url: tomcatUrl)], 
                    contextPath: contextPath, 
                    war: artifactPath
         }
 
-        // Send Slack notification on success
-        slackSend(channel: '#your-channel-name', 
+        slackSend(channel: '#jenkins-integration', 
                   color: 'good', 
                   message: "Build #${env.BUILD_NUMBER} of ${env.JOB_NAME} succeeded! Deployed to Tomcat at ${env.BUILD_URL}", 
                   tokenCredentialId: 'slack_token')
     } catch (Exception e) {
-        // Send Slack notification on failure
         slackSend(channel: '#your-channel-name', 
                   color: 'danger', 
                   message: "Build #${env.BUILD_NUMBER} of ${env.JOB_NAME} failed: ${e.getMessage()} at ${env.BUILD_URL}", 
                   tokenCredentialId: 'slack_token')
-        throw e // Re-throw to mark build as failed
+        throw e
     }
 }
