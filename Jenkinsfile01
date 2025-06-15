@@ -1,96 +1,92 @@
-pipeline {
-    agent any
+node {
+    // Define environment variables
+    def NEXUS_VERSION = "nexus3"
+    def NEXUS_PROTOCOL = "http"
+    def NEXUS_URL = "34.201.219.251:8082"
+    def NEXUS_REPOSITORY = "maven-snapshot05"
+    def NEXUS_CREDENTIAL_ID = "Nexus_server"
+    def SCANNER_HOME = tool name: 'sonar_scanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+    def mvnHome = tool name: 'Maven_3.9.4', type: 'hudson.tasks.Maven$MavenInstallation'
 
-    tools {
-        maven 'Maven_3.9.4'
-    }
+    try {
+        // Stage 1: Clone code
+        stage('Clone Code') {
+            git 'https://github.com/sripriya7-ande/sabear_simplecutomerapp.git'
+        }
 
-    environment {
-        // Nexus configuration
-        NEXUS_VERSION = "nexus_3.9.4" // Should be "nexus2" or "nexus3"
-        NEXUS_PROTOCOL = "http"
-        NEXUS_URL = "34.201.219.251:8082" // Removed trailing slash
-        NEXUS_REPOSITORY = "maven-snapshot05" // Confirm this exists in Nexus
-        NEXUS_CREDENTIAL_ID = "nexus-credentials" // This must match Jenkins credential ID
+        // Stage 2: Maven Build
+        stage('Maven Build') {
+            sh "${mvnHome}/bin/mvn -Dmaven.test.failure.ignore=true clean install"
+        }
 
-        // SonarScanner
-        SCANNER_HOME = tool 'sonar_scanner'
-    }
-
-    stages {
-
-        stage("Clone Code") {
-            steps {
-                git 'https://github.com/sripriya7-ande/sabear_simplecutomerapp.git'
+        // Stage 3: SonarCloud
+        stage('SonarCloud') {
+            withSonarQubeEnv('sonar') {
+                sh """
+                    ${SCANNER_HOME}/bin/sonar-scanner \
+                    -Dsonar.projectKey=Ncodeit \
+                    -Dsonar.projectName=Ncodeit \
+                    -Dsonar.projectVersion=2.0 \
+                    -Dsonar.sources=${WORKSPACE}/src/main/java \
+                    -Dsonar.binaries=${WORKSPACE}/target/classes \
+                    -Dsonar.junit.reportsPath=${WORKSPACE}/target/surefire-reports \
+                    -Dsonar.jacoco.reportPath=${WORKSPACE}/target/jacoco.exec \
+                    -Dsonar.java.binaries=${WORKSPACE}/src/main/java
+                """
             }
         }
 
-        stage("Build with Maven") {
-            steps {
-                sh 'mvn -Dmaven.test.failure.ignore=true clean install'
+        // Stage 4: Publish to Nexus
+        stage('Publish to Nexus') {
+            def pom = readMavenPom file: 'pom.xml'
+            echo "Version: ${pom.version}"
+            def filesByGlob = findFiles(glob: "target/*.${pom.packaging}")
+            echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
+            def artifactPath = filesByGlob[0].path
+            def artifactExists = fileExists artifactPath
+            if (artifactExists) {
+                echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version: ${pom.version}"
+                nexusArtifactUploader(
+                    nexusVersion: NEXUS_VERSION,
+                    protocol: NEXUS_PROTOCOL,
+                    nexusUrl: NEXUS_URL,
+                    groupId: pom.groupId,
+                    version: pom.version,
+                    repository: NEXUS_REPOSITORY,
+                    credentialsId: NEXUS_CREDENTIAL_ID,
+                    artifacts: [
+                        [artifactId: pom.artifactId, classifier: '', file: artifactPath, type: pom.packaging],
+                        [artifactId: pom.artifactId, classifier: '', file: "pom.xml", type: "pom"]
+                    ]
+                )
+            } else {
+                error "*** File: ${artifactPath}, could not be found"
             }
         }
 
-        stage("SonarQube Analysis") {
-            steps {
-                withSonarQubeEnv('sonar') {
-                    sh '''${SCANNER_HOME}/bin/sonar-scanner \
-                        -Dsonar.projectKey=Ncodeit \
-                        -Dsonar.projectName=Ncodeit \
-                        -Dsonar.projectVersion=2.0 \
-                        -Dsonar.sources=src \
-                        -Dsonar.java.binaries=target/classes \
-                        -Dsonar.junit.reportsPath=target/surefire-reports \
-                        -Dsonar.jacoco.reportPath=target/jacoco.exec'''
-                }
-            }
+        // Stage 5: Deploy to Tomcat
+        stage('Deploy to Tomcat') {
+            def pom = readMavenPom file: 'pom.xml'
+            def artifactPath = "target/*.${pom.packaging}"
+            def tomcatUrl = 'https://34.201.219.251:8443'
+            def contextPath = "/${pom.artifactId}" // Deploys to /SimpleCustomerApp (adjust if needed)
+            
+            deploy adapters: [tomcat9(credentialsId: 'tomcat-token', url: tomcatUrl)], 
+                   contextPath: contextPath, 
+                   war: artifactPath
         }
 
-        stage("Publish to Nexus") {
-            steps {
-                script {
-                    def pom = readMavenPom file: 'pom.xml'
-                    echo "Version: ${pom.version}"
-
-                    def filesByGlob = findFiles(glob: "target/*.${pom.packaging}")
-                    if (filesByGlob.length == 0) {
-                        error "*** No artifact found in target/"
-                    }
-
-                    def artifactPath = filesByGlob[0].path
-                    def artifactExists = fileExists artifactPath
-
-                    if (artifactExists) {
-                        echo "*** Uploading artifact: ${artifactPath}"
-
-                        nexusArtifactUploader(
-                            nexusVersion: NEXUS_VERSION,
-                            protocol: NEXUS_PROTOCOL,
-                            nexusUrl: NEXUS_URL,
-                            groupId: pom.groupId,
-                            version: pom.version,
-                            repository: NEXUS_REPOSITORY,
-                            credentialsId: NEXUS_CREDENTIAL_ID,
-                            artifacts: [
-                                [
-                                    artifactId: pom.artifactId,
-                                    classifier: '',
-                                    file: artifactPath,
-                                    type: pom.packaging
-                                ],
-                                [
-                                    artifactId: pom.artifactId,
-                                    classifier: '',
-                                    file: 'pom.xml',
-                                    type: 'pom'
-                                ]
-                            ]
-                        )
-                    } else {
-                        error "*** File: ${artifactPath}, could not be found"
-                    }
-                }
-            }
-        }
+        // Send Slack notification on success
+        slackSend(channel: '#your-channel-name', 
+                  color: 'good', 
+                  message: "Build #${env.BUILD_NUMBER} of ${env.JOB_NAME} succeeded! Deployed to Tomcat at ${env.BUILD_URL}", 
+                  tokenCredentialId: 'slack_token')
+    } catch (Exception e) {
+        // Send Slack notification on failure
+        slackSend(channel: '#your-channel-name', 
+                  color: 'danger', 
+                  message: "Build #${env.BUILD_NUMBER} of ${env.JOB_NAME} failed: ${e.getMessage()} at ${env.BUILD_URL}", 
+                  tokenCredentialId: 'slack_token')
+        throw e // Re-throw to mark build as failed
     }
 }
