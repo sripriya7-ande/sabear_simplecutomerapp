@@ -13,7 +13,7 @@ pipeline { // Opening pipeline
         // Repository where we will upload the artifact
         NEXUS_REPOSITORY = "maven-snapshot05/" // Is this the correct Nexus repository name? Sonarqube is usually a tool, not a Nexus repo. Common ones are 'maven-releases', 'maven-snapshots'.
         // Jenkins credential id to authenticate to Nexus OSS
-        NEXUS_CREDENTIAL_ID = "admin/****** (nexus)" // Make sure this is the exact ID configured in Jenkins Credentials.
+        NEXUS_CREDENTIAL_ID = "Nexus_server" // Make sure this is the exact ID configured in Jenkins Credentials.
         SCANNER_HOME = tool 'sonar_scanner' // This should be the tool name configured in Jenkins for SonarQube Scanner.
     } // Closing environment
     stages { // Opening stages
